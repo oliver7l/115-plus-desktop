@@ -117,7 +117,7 @@ pub async fn start_server(
 ) -> Result<ApiServerState, ApiServerError> {
     let (state, mut shutdown_rx) = ApiServerState::new(config.clone());
 
-    let app: Router = if config.enable_cors {
+    let app = if config.enable_cors {
         use tower_http::cors::{Any, CorsLayer};
         let cors = CorsLayer::new()
             .allow_origin(Any)
