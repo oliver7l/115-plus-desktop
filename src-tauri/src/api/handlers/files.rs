@@ -1,13 +1,13 @@
 //! 文件相关 API 处理函数
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, Query},
     Json,
 };
 use log::info;
 use serde::Deserialize;
 
-use crate::api::{client, ApiError, CookieState};
+use crate::api::{client, ApiError, get_cookie_state};
 
 /// 列出文件请求参数
 #[derive(Deserialize)]
@@ -47,11 +47,10 @@ pub struct FileListResponse {
 /// 获取文件列表
 pub async fn list_files(
     Query(params): Query<ListFilesQuery>,
-    State(cookies): State<CookieState>,
 ) -> Result<Json<FileListResponse>, ApiError> {
     info!("[API] 列出文件: cid={:?}", params.cid);
 
-    let cookies_str = cookies.get_cookies();
+    let cookies_str = get_cookie_state().get_cookies();
     if cookies_str.is_empty() {
         return Err(ApiError::Internal("未设置 Cookie，请先登录".to_string()));
     }
@@ -91,11 +90,10 @@ pub async fn list_files(
 /// 获取文件详情
 pub async fn get_file_info(
     Path(pickcode): Path<String>,
-    State(cookies): State<CookieState>,
 ) -> Result<Json<FileItem>, ApiError> {
     info!("[API] 获取文件详情: pickcode={}", pickcode);
 
-    let cookies_str = cookies.get_cookies();
+    let cookies_str = get_cookie_state().get_cookies();
     if cookies_str.is_empty() {
         return Err(ApiError::Internal("未设置 Cookie，请先登录".to_string()));
     }

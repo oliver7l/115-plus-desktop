@@ -3,13 +3,13 @@
 //! 直接调用 115 API 获取视频信息
 
 use axum::{
-    extract::{Path, State},
+    extract::Path,
     http::StatusCode,
     Json,
 };
 use log::info;
 
-use crate::api::{client, ApiError, CookieState};
+use crate::api::{client, ApiError, get_cookie_state};
 
 /// 视频信息响应
 #[derive(serde::Serialize)]
@@ -62,11 +62,10 @@ pub struct SaveHistoryRequest {
 /// 获取视频播放信息（HLS 地址等）
 pub async fn get_video_info(
     Path(pickcode): Path<String>,
-    State(cookies): State<CookieState>,
 ) -> Result<Json<VideoInfoResponse>, ApiError> {
     info!("[API] 获取视频信息: pickcode={}", pickcode);
 
-    let cookies_str = cookies.get_cookies();
+    let cookies_str = get_cookie_state().get_cookies();
     if cookies_str.is_empty() {
         return Err(ApiError::Internal("未设置 Cookie，请先登录".to_string()));
     }
@@ -109,11 +108,10 @@ pub async fn get_video_info(
 /// 获取视频字幕列表
 pub async fn get_video_subtitle(
     Path(pickcode): Path<String>,
-    State(cookies): State<CookieState>,
 ) -> Result<Json<Vec<SubtitleInfo>>, ApiError> {
     info!("[API] 获取字幕列表: pickcode={}", pickcode);
 
-    let cookies_str = cookies.get_cookies();
+    let cookies_str = get_cookie_state().get_cookies();
     if cookies_str.is_empty() {
         return Err(ApiError::Internal("未设置 Cookie，请先登录".to_string()));
     }
@@ -135,11 +133,10 @@ pub async fn get_video_subtitle(
 /// 获取视频播放历史
 pub async fn get_video_history(
     Path(pickcode): Path<String>,
-    State(cookies): State<CookieState>,
 ) -> Result<Json<VideoHistoryResponse>, ApiError> {
     info!("[API] 获取视频历史: pickcode={}", pickcode);
 
-    let cookies_str = cookies.get_cookies();
+    let cookies_str = get_cookie_state().get_cookies();
     if cookies_str.is_empty() {
         return Err(ApiError::Internal("未设置 Cookie，请先登录".to_string()));
     }
@@ -161,7 +158,6 @@ pub async fn get_video_history(
 /// 保存视频播放进度
 pub async fn save_video_history(
     Path(pickcode): Path<String>,
-    State(cookies): State<CookieState>,
     Json(payload): Json<SaveHistoryRequest>,
 ) -> Result<StatusCode, ApiError> {
     info!(
@@ -169,7 +165,7 @@ pub async fn save_video_history(
         pickcode, payload.time
     );
 
-    let cookies_str = cookies.get_cookies();
+    let cookies_str = get_cookie_state().get_cookies();
     if cookies_str.is_empty() {
         return Err(ApiError::Internal("未设置 Cookie，请先登录".to_string()));
     }

@@ -1,9 +1,9 @@
 //! 用户相关 API 处理函数
 
-use axum::{extract::State, Json};
+use axum::Json;
 use serde::Serialize;
 
-use crate::api::{client, ApiError, CookieState};
+use crate::api::{client, ApiError, get_cookie_state};
 
 /// 用户信息响应
 #[derive(Serialize)]
@@ -25,10 +25,8 @@ pub struct UserQuotaResponse {
 /// GET /api/user/info
 ///
 /// 获取用户信息
-pub async fn get_user_info(
-    State(cookies): State<CookieState>,
-) -> Result<Json<UserInfoResponse>, ApiError> {
-    let cookies_str = cookies.get_cookies();
+pub async fn get_user_info() -> Result<Json<UserInfoResponse>, ApiError> {
+    let cookies_str = get_cookie_state().get_cookies();
     if cookies_str.is_empty() {
         return Err(ApiError::Internal("未设置 Cookie，请先登录".to_string()));
     }
@@ -47,10 +45,8 @@ pub async fn get_user_info(
 /// GET /api/user/quota
 ///
 /// 获取用户配额
-pub async fn get_user_quota(
-    State(cookies): State<CookieState>,
-) -> Result<Json<UserQuotaResponse>, ApiError> {
-    let cookies_str = cookies.get_cookies();
+pub async fn get_user_quota() -> Result<Json<UserQuotaResponse>, ApiError> {
+    let cookies_str = get_cookie_state().get_cookies();
     if cookies_str.is_empty() {
         return Err(ApiError::Internal("未设置 Cookie，请先登录".to_string()));
     }
@@ -66,4 +62,3 @@ pub async fn get_user_quota(
         space_total: parse_size(&quota.space_total),
     }))
 }
-

@@ -6,7 +6,7 @@
 //!
 //! - 使用 axum 构建 HTTP API 服务
 //! - 直接调用 115 API，不依赖前端
-//! - Cookie 通过前端同步到 Rust 状态
+//! - Cookie 通过全局状态管理，不依赖 axum State
 
 pub mod client;
 pub mod handlers;
@@ -15,11 +15,23 @@ pub mod routes;
 pub use client::ApiError;
 
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::OnceLock;
 
 use log::{error, info};
-use axum::Router;
 use tokio::sync::broadcast;
+
+/// 全局 Cookie 状态
+static COOKIE_STATE: OnceLock<CookieState> = OnceLock::new();
+
+/// 初始化全局 Cookie 状态
+pub fn init_cookie_state() {
+    COOKIE_STATE.get_or_init(CookieState::default);
+}
+
+/// 获取全局 Cookie 状态引用
+pub fn get_cookie_state() -> &'static CookieState {
+    COOKIE_STATE.get().expect("CookieState 未初始化")
+}
 
 /// API 服务配置
 #[derive(Debug, Clone)]
@@ -76,15 +88,7 @@ impl ApiServerState {
 /// Cookie 管理状态
 #[derive(Debug)]
 pub struct CookieState {
-    pub cookies: std::sync::RwLock<String>,
-}
-
-impl Clone for CookieState {
-    fn clone(&self) -> Self {
-        Self {
-            cookies: std::sync::RwLock::new(self.get_cookies()),
-        }
-    }
+    cookies: std::sync::RwLock<String>,
 }
 
 impl Default for CookieState {
@@ -113,7 +117,6 @@ impl CookieState {
 pub async fn start_server(
     config: ApiServerConfig,
     mode: ApiServerMode,
-    cookie_state: CookieState,
 ) -> Result<ApiServerState, ApiServerError> {
     let (state, mut shutdown_rx) = ApiServerState::new(config.clone());
 
@@ -124,9 +127,9 @@ pub async fn start_server(
             .allow_methods(Any)
             .allow_headers(Any);
 
-        routes::create_routes(mode, cookie_state.clone()).layer(cors)
+        routes::create_routes(mode).layer(cors)
     } else {
-        routes::create_routes(mode, cookie_state.clone())
+        routes::create_routes(mode)
     };
 
     let addr: SocketAddr = format!("{}:{}", config.host, config.port)
@@ -139,8 +142,8 @@ pub async fn start_server(
         .await
         .map_err(|e| ApiServerError::BindFailed(e.to_string()))?;
 
-    // 启动服务
-    let server = axum::serve(listener, app.into_make_service());
+    // 启动服务 (Router<()> 可以直接 serve)
+    let server = axum::serve(listener, app);
 
     // 创建停止信号
     let shutdown_tx = state.shutdown_tx.clone();

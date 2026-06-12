@@ -1,9 +1,9 @@
 //! 星标文件相关 API 处理函数
 
-use axum::{extract::State, Json};
+use axum::Json;
 use serde::Serialize;
 
-use crate::api::{client, ApiError, CookieState};
+use crate::api::{client, ApiError, get_cookie_state};
 
 /// 星标文件项
 #[derive(Serialize)]
@@ -20,10 +20,8 @@ pub struct StarredItem {
 /// GET /api/starred
 ///
 /// 获取星标文件列表
-pub async fn list_starred(
-    State(cookies): State<CookieState>,
-) -> Result<Json<Vec<StarredItem>>, ApiError> {
-    let cookies_str = cookies.get_cookies();
+pub async fn list_starred() -> Result<Json<Vec<StarredItem>>, ApiError> {
+    let cookies_str = get_cookie_state().get_cookies();
     if cookies_str.is_empty() {
         return Err(ApiError::Internal("未设置 Cookie，请先登录".to_string()));
     }
@@ -45,4 +43,3 @@ pub async fn list_starred(
 
     Ok(Json(items))
 }
-
