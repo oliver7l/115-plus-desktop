@@ -5,6 +5,7 @@ use axum::{
     Json,
 };
 use log::info;
+use serde::Deserialize;
 
 use crate::api::{client, ApiError, CookieState};
 
@@ -17,8 +18,6 @@ pub struct ListFilesQuery {
     pub sort: Option<String>,
     pub asc: Option<u8>,
 }
-
-use serde::Deserialize;
 
 /// 文件项
 #[derive(serde::Serialize)]

@@ -2,7 +2,7 @@
 //!
 //! 上传任务由 Rust 后端直接管理
 
-use axum::{extract::State, Json};
+use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::api::ApiError;

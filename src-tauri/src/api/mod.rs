@@ -12,6 +12,8 @@ pub mod client;
 pub mod handlers;
 pub mod routes;
 
+pub use client::ApiError;
+
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -41,7 +43,7 @@ impl Default for ApiServerConfig {
 }
 
 /// API 服务模式
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ApiServerMode {
     /// 独立启动，不依赖前端窗口
     Standalone,
@@ -72,9 +74,17 @@ impl ApiServerState {
 }
 
 /// Cookie 管理状态
-#[derive(Clone)]
+#[derive(Debug)]
 pub struct CookieState {
     pub cookies: std::sync::RwLock<String>,
+}
+
+impl Clone for CookieState {
+    fn clone(&self) -> Self {
+        Self {
+            cookies: std::sync::RwLock::new(self.get_cookies()),
+        }
+    }
 }
 
 impl Default for CookieState {
@@ -114,9 +124,9 @@ pub async fn start_server(
             .allow_methods(Any)
             .allow_headers(Any);
 
-        routes::create_routes(mode).layer(cors)
+        routes::create_routes(mode, cookie_state.clone()).layer(cors)
     } else {
-        routes::create_routes(mode)
+        routes::create_routes(mode, cookie_state.clone())
     };
 
     let addr: SocketAddr = format!("{}:{}", config.host, config.port)
@@ -194,10 +204,12 @@ impl From<ApiServerError> for axum::response::Response<String> {
             ApiServerError::Internal(_) => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
         };
 
-        axum::response::Response::builder(status)
+        axum::response::Response::builder()
+            .status(status)
             .body(err.to_string())
             .unwrap_or_else(|_| {
-                axum::http::Response::builder(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                axum::http::Response::builder()
+                    .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
                     .body("Internal Error".to_string())
                     .unwrap()
             })

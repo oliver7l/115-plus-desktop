@@ -2,13 +2,10 @@
 //!
 //! 下载任务由 Rust 后端直接管理
 
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
-use tauri::State as TauriState;
-use tauri::AppHandle;
 
 use crate::api::ApiError;
-use crate::lib::download;
 
 /// 下载任务项
 #[derive(Serialize, Deserialize)]

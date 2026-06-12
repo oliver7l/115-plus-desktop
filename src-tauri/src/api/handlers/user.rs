@@ -1,8 +1,7 @@
 //! 用户相关 API 处理函数
 
-use axum::extract::State;
+use axum::{extract::State, Json};
 use serde::Serialize;
-use serde::de::DeserializeOwned;
 
 use crate::api::{client, ApiError, CookieState};
 
@@ -68,4 +67,3 @@ pub async fn get_user_quota(
     }))
 }
 
-use axum::Json;

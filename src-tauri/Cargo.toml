@@ -44,7 +44,7 @@ tauri-plugin-pinia = "4.2.0"
 ali-oss-rs = "0.2.5"
 fs4 = { version = "1.1.0", features = ["sync"] }
 sha1 = "0.11.0"
-reqwest = { version = "0.13.4", default-features = false, features = ["stream", "json", "native-tls"] }
+reqwest = { version = "0.13.4", default-features = false, features = ["stream", "json", "native-tls", "form"] }
 futures-util = "0.3.32"
 thiserror = "2.0.18"
 tokio = { version = "1.52.3", features = ["full"] }
