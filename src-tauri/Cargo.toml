@@ -3,7 +3,7 @@ name = "oof-plus-desktop"
 version = "1.0.7"
 description = "115+ 是一个基于 115 网盘开放平台的开源桌面客户端"
 authors = ["lvzhenbo"]
-edition = "2021"
+edition = "2024"
 license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

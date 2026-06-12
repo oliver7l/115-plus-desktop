@@ -231,10 +231,10 @@ pub fn run() {
             download::queue::download_pause_all,
             download::queue::download_resume_all,
             // API 服务
-            api_start_server,
-            api_stop_server,
-            api_get_status,
-            api_set_cookies,
+            start_api_server,
+            stop_api_server,
+            get_api_status,
+            set_api_cookies,
         ])
         // ---- 运行 ----
         .build(tauri::generate_context!())
@@ -293,7 +293,7 @@ impl Default for ApiServiceState {
 
 /// 启动 API HTTP 服务
 #[tauri::command]
-pub(crate) async fn api_start_server(
+pub(crate) async fn start_api_server(
     state: State<'_, ApiServiceState>,
     host: Option<String>,
     port: Option<u16>,
@@ -335,7 +335,7 @@ pub(crate) async fn api_start_server(
 
 /// 停止 API HTTP 服务
 #[tauri::command]
-pub(crate) async fn api_stop_server(state: State<'_, ApiServiceState>) -> Result<(), String> {
+pub(crate) async fn stop_api_server(state: State<'_, ApiServiceState>) -> Result<(), String> {
     let server_state = {
         let mut server = state.server.write().await;
         server.take()
@@ -353,7 +353,7 @@ pub(crate) async fn api_stop_server(state: State<'_, ApiServiceState>) -> Result
 
 /// 获取 API 服务状态
 #[tauri::command]
-pub(crate) async fn api_get_status(state: State<'_, ApiServiceState>) -> Result<Option<String>, String> {
+pub(crate) async fn get_api_status(state: State<'_, ApiServiceState>) -> Result<Option<String>, String> {
     let server = state.server.read().await;
     Ok(server
         .as_ref()
@@ -364,7 +364,7 @@ pub(crate) async fn api_get_status(state: State<'_, ApiServiceState>) -> Result<
 ///
 /// 前端登录后调用此方法同步 Cookie 到 Rust 后端
 #[tauri::command]
-pub(crate) async fn api_set_cookies(
+pub(crate) async fn set_api_cookies(
     cookies: String,
     state: State<'_, ApiServiceState>,
 ) -> Result<(), String> {
