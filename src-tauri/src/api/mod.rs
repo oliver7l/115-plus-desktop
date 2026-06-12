@@ -18,6 +18,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use log::{error, info};
+use axum::Router;
 use tokio::sync::broadcast;
 
 /// API 服务配置
@@ -139,7 +140,7 @@ pub async fn start_server(
         .map_err(|e| ApiServerError::BindFailed(e.to_string()))?;
 
     // 启动服务
-    let server = axum::serve(listener, app.into_make_service());
+    let server = axum::serve(listener, app.into_service());
 
     // 创建停止信号
     let shutdown_tx = state.shutdown_tx.clone();
