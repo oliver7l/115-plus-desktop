@@ -28,11 +28,14 @@
 
 use chrono::Local;
 use serde::Deserialize;
-use tauri::{AppHandle, Manager, RunEvent, WindowEvent};
+use std::sync::Arc;
+use tauri::{AppHandle, Manager, RunEvent, State, WindowEvent};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 use tauri_plugin_pinia::ManagerExt as PiniaManagerExt;
 use tauri_plugin_window_state::StateFlags;
+use tokio::sync::RwLock;
 
+mod api;
 mod download;
 mod subtitle;
 mod tray;
@@ -177,6 +180,9 @@ pub fn run() {
             download::init(app).map_err(|err| -> Box<dyn std::error::Error> { Box::new(err) })?;
             tray::create(app.handle())?;
 
+            // 注册 API 服务状态
+            app.manage(ApiServiceState::default());
+
             log::info!("应用初始化完成");
             Ok(())
         })
@@ -224,6 +230,11 @@ pub fn run() {
             download::queue::download_retry_folder,
             download::queue::download_pause_all,
             download::queue::download_resume_all,
+            // API 服务
+            api_start_server,
+            api_stop_server,
+            api_get_status,
+            api_set_cookies,
         ])
         // ---- 运行 ----
         .build(tauri::generate_context!())
@@ -259,5 +270,105 @@ pub(crate) fn show_window(app: &AppHandle) -> Result<(), String> {
         .set_focus()
         .map_err(|err| format!("聚焦主窗口失败：{}", err))?;
 
+    Ok(())
+}
+
+// ============== API 服务管理 ==============
+
+/// API 服务状态
+pub struct ApiServiceState {
+    server: Arc<RwLock<Option<api::ApiServerState>>>,
+    /// Cookie 状态（共享）
+    pub cookie_state: api::CookieState,
+}
+
+impl Default for ApiServiceState {
+    fn default() -> Self {
+        Self {
+            server: Arc::new(RwLock::new(None)),
+            cookie_state: api::CookieState::default(),
+        }
+    }
+}
+
+/// 启动 API HTTP 服务
+#[tauri::command]
+pub async fn api_start_server(
+    state: State<'_, ApiServiceState>,
+    host: Option<String>,
+    port: Option<u16>,
+    enable_cors: Option<bool>,
+) -> Result<String, String> {
+    let config = api::ApiServerConfig {
+        host: host.unwrap_or_else(|| "0.0.0.0".to_string()),
+        port: port.unwrap_or(11500),
+        enable_cors: enable_cors.unwrap_or(true),
+    };
+
+    // 检查是否已启动
+    {
+        let server = state.server.read().await;
+        if server.is_some() {
+            return Err("API 服务已在运行".to_string());
+        }
+    }
+
+    // 克隆 cookie_state 供 server 使用
+    let cookie_state = state.cookie_state.clone();
+
+    // 启动服务
+    let server_state = api::start_server(config, api::ApiServerMode::Embedded, cookie_state)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let addr = format!("http://{}:{}", server_state.config.host, server_state.config.port);
+
+    // 保存状态
+    {
+        let mut server = state.server.write().await;
+        *server = Some(server_state);
+    }
+
+    log::info!("[API] HTTP 服务已启动于 {}", addr);
+    Ok(addr)
+}
+
+/// 停止 API HTTP 服务
+#[tauri::command]
+pub async fn api_stop_server(state: State<'_, ApiServiceState>) -> Result<(), String> {
+    let server_state = {
+        let mut server = state.server.write().await;
+        server.take()
+    };
+
+    if let Some(state) = server_state {
+        api::stop_server(&state);
+        log::info!("[API] HTTP 服务已停止");
+    } else {
+        return Err("API 服务未运行".to_string());
+    }
+
+    Ok(())
+}
+
+/// 获取 API 服务状态
+#[tauri::command]
+pub async fn api_get_status(state: State<'_, ApiServiceState>) -> Result<Option<String>, String> {
+    let server = state.server.read().await;
+    Ok(server
+        .as_ref()
+        .map(|s| format!("http://{}:{}", s.config.host, s.config.port)))
+}
+
+/// 设置 115 API Cookie
+///
+/// 前端登录后调用此方法同步 Cookie 到 Rust 后端
+#[tauri::command]
+pub async fn api_set_cookies(
+    cookies: String,
+    state: State<'_, ApiServiceState>,
+) -> Result<(), String> {
+    state.cookie_state.set_cookies(cookies);
+    log::info!("[API] Cookie 已更新");
     Ok(())
 }

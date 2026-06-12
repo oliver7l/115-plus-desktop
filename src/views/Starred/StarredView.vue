@@ -1,0 +1,238 @@
+<template>
+  <div>
+    <FileExplorer
+      ref="explorerRef"
+      v-model:cid="cid"
+      v-model:view-mode="userStore.homeViewMode"
+      v-model:sort-config="userStore.homeSortConfig"
+      :toolbar="starredToolbarActions"
+      :context-menu="starredContextMenuActions"
+      :starred="true"
+      class="h-[calc(100vh-59px)]"
+      @download="handleDownload"
+      @batch-download="handleBatchDownload"
+      @upload-file="handleUploadFiles"
+      @upload-folder="handleUploadFolder"
+      @open-file="handleOpenFile"
+      @toggle-star="handleToggleStar"
+    />
+    <NImageGroup
+      v-model:show="imgPreviewVisible"
+      v-model:current="imgPreviewIndex"
+      :src-list="imgPreviewList"
+      :render-toolbar="renderToolbar"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+  import type { ImageRenderToolbarProps } from 'naive-ui';
+  import { open } from '@tauri-apps/plugin-dialog';
+  import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+  import { emit, listen } from '@tauri-apps/api/event';
+  import type { ToolbarAction, ContextMenuAction } from '@/components/FileExplorer/types';
+  import type { MyFile } from '@/api/types/file';
+  import { setFileStar } from '@/api/file';
+  import { useDownloadManager } from '@/composables/useDownloadManager';
+  import { useUploadManager } from '@/composables/useUploadManager';
+  import { useUserStore } from '@/store/user';
+
+  const route = useRoute();
+  const message = useMessage();
+  const userStore = useUserStore();
+  const explorerRef = useTemplateRef('explorerRef');
+  const cid = ref('0');
+  const imgPreviewVisible = ref(false);
+  const imgPreviewList = ref<string[]>([]);
+  const imgPreviewIndex = ref(0);
+
+  const { download: downloadFile, batchDownload: batchDownloadFiles } = useDownloadManager();
+  const { uploadFiles: uploadFilesToCloud, uploadFolder: uploadFolderToCloud } = useUploadManager();
+
+  const selectFile = ref<MyFile | null>(null);
+
+  // 星标视图的工具栏操作
+  const starredToolbarActions: ToolbarAction[] = ['refresh', 'download', 'upload', 'viewToggle'];
+
+  // 星标视图的右键菜单操作
+  const starredContextMenuActions: ContextMenuAction[] = [
+    'open',
+    'reload',
+    'download',
+    'copy',
+    'move',
+    'rename',
+    'batchRename',
+    'toggleStar',
+    'detail',
+    'delete',
+  ];
+
+  const unlisten = listen('get-video-list', () => {
+    emit('set-video-list', selectFile.value);
+  });
+
+  onUnmounted(() => {
+    unlisten.then((f) => f());
+  });
+
+  watch(
+    route,
+    () => {
+      if (route.name === 'Starred') {
+        // 星标视图固定显示星标文件
+        explorerRef.value?.navigate();
+      }
+    },
+    { deep: true },
+  );
+
+  // ============ 打开文件 ============
+
+  const handleOpenFile = async (file: MyFile) => {
+    selectFile.value = file;
+    if (file.isv) {
+      try {
+        const existingWindow = await WebviewWindow.getByLabel('video-player');
+        if (existingWindow) {
+          emit('set-video-list', file);
+          await existingWindow.setFocus();
+        } else {
+          const videoPlayerWindow = new WebviewWindow('video-player', {
+            url: '/videoPlayer',
+            title: file.fn,
+            width: 1280,
+            height: 720,
+            minWidth: 1280,
+            minHeight: 720,
+            center: true,
+            visible: false,
+          });
+
+          videoPlayerWindow.once('tauri://error', (e) => {
+            console.error('窗口创建失败', e);
+            message.error('视频窗口创建失败');
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    } else if (file.uo) {
+      const allItems = explorerRef.value?.getItems() || [];
+      const imageFiles = allItems.filter((f) => f.uo);
+      if (imageFiles.length > 0) {
+        imgPreviewList.value = imageFiles.map((f) => f.uo!);
+        const idx = imageFiles.findIndex((f) => f.fid === file.fid);
+        imgPreviewIndex.value = idx >= 0 ? idx : 0;
+      } else {
+        imgPreviewList.value = [file.uo];
+        imgPreviewIndex.value = 0;
+      }
+      imgPreviewVisible.value = true;
+    }
+  };
+
+  // ============ 下载 ============
+
+  const handleDownload = async (file: MyFile) => {
+    message.info('正在获取下载链接，可在下载列表中查看下载进度');
+    try {
+      await downloadFile(file);
+    } catch (error) {
+      console.error(error);
+      message.error('下载任务添加失败');
+    }
+  };
+
+  const handleBatchDownload = async (files: MyFile[]) => {
+    if (files.length === 0) return;
+    message.info(`正在添加 ${files.length} 个文件到下载队列，可在下载列表中查看进度`);
+    try {
+      await batchDownloadFiles(files);
+    } catch (error) {
+      console.error(error);
+      message.error('批量下载任务添加失败');
+    }
+  };
+
+  // ============ 上传 ============
+
+  const handleUploadFiles = async () => {
+    const selected = await open({
+      multiple: true,
+      title: '选择要上传的文件',
+    });
+    if (!selected) return;
+    const paths = Array.isArray(selected) ? selected : [selected];
+    if (paths.length === 0) return;
+
+    const files: { path: string; name: string; size: number }[] = [];
+    for (const filePath of paths) {
+      try {
+        const size: number = await invoke('upload_get_file_size', { filePath });
+        const name = filePath.split(/[\\/]/).pop() || filePath;
+        files.push({ path: filePath, name, size });
+      } catch (e) {
+        console.error('获取文件信息失败:', e);
+      }
+    }
+
+    if (files.length === 0) return;
+
+    message.info(`正在添加 ${files.length} 个文件到上传队列，可在上传列表中查看进度`);
+    try {
+      await uploadFilesToCloud(files, cid.value || '0');
+    } catch (error) {
+      console.error(error);
+      message.error('上传任务添加失败');
+    }
+  };
+
+  const handleUploadFolder = async () => {
+    const selected = await open({
+      directory: true,
+      title: '选择要上传的文件夹',
+    });
+    if (!selected) return;
+
+    const folderPath = Array.isArray(selected) ? selected[0] : selected;
+    if (!folderPath) return;
+
+    const folderName = folderPath.split(/[\\/]/).pop() || folderPath;
+
+    message.info(`正在添加文件夹 "${folderName}" 到上传队列，可在上传列表中查看进度`);
+    try {
+      await uploadFolderToCloud(folderPath, folderName, cid.value || '0');
+    } catch (error) {
+      console.error(error);
+      message.error('上传任务添加失败');
+    }
+  };
+
+  // ============ 星标 ============
+
+  const handleToggleStar = async (file: MyFile) => {
+    try {
+      const newStar = file.ism === '1' ? 0 : 1;
+      await setFileStar({ file_ids: file.fid, star: newStar });
+      message.success(newStar === 1 ? '已添加星标' : '已取消星标');
+      explorerRef.value?.refresh();
+    } catch (error) {
+      console.error(error);
+      message.error('星标操作失败');
+    }
+  };
+
+  const renderToolbar = ({ nodes }: ImageRenderToolbarProps) => {
+    return [
+      nodes.prev,
+      nodes.next,
+      nodes.rotateCounterclockwise,
+      nodes.rotateClockwise,
+      nodes.resizeToOriginalSize,
+      nodes.zoomOut,
+      nodes.zoomIn,
+      nodes.close,
+    ];
+  };
+</script>

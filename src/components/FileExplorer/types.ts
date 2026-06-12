@@ -35,6 +35,7 @@ export type ContextMenuAction =
   | 'move'
   | 'rename'
   | 'batchRename'
+  | 'toggleStar'
   | 'detail'
   | 'delete';
 

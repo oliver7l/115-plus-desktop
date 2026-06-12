@@ -9,7 +9,12 @@
     UploadOutlined,
     OrderedListOutlined,
   } from '@vicons/antd';
-  import { DriveFileMoveOutlined, DriveFileRenameOutlineOutlined } from '@vicons/material';
+  import {
+    DriveFileMoveOutlined,
+    DriveFileRenameOutlineOutlined,
+    StarOutlined,
+    StarFilled,
+  } from '@vicons/material';
   import type { DropdownOption } from 'naive-ui';
   import type { MyFile } from '@/api/types/file';
   import type { ContextMenuAction } from '../../types';
@@ -35,6 +40,7 @@
     move: [];
     delete: [];
     detail: [];
+    toggleStar: [];
   }>();
 
   const themeVars = useThemeVars();
@@ -118,6 +124,13 @@
       },
       { type: 'divider', key: 'd3' },
       {
+        label: () => (props.targetItem?.ism === '1' ? '取消星标' : '添加星标'),
+        key: 'toggleStar',
+        icon: () => (
+          <NIcon>{props.targetItem?.ism === '1' ? <StarFilled /> : <StarOutlined />}</NIcon>
+        ),
+      },
+      {
         label: '详情',
         key: 'detail',
         icon: () => (
@@ -195,6 +208,7 @@
       move: () => emit('move'),
       rename: () => emit('rename'),
       batchRename: () => emit('batchRename'),
+      toggleStar: () => emit('toggleStar'),
       detail: () => emit('detail'),
       delete: () => emit('delete'),
     };

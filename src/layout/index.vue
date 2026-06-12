@@ -135,6 +135,7 @@
     MenuFoldOutlined,
     MenuUnfoldOutlined,
   } from '@vicons/antd';
+  import { StarOutlined } from '@vicons/material';
   import OfflineDownloadModal from './components/OfflineDownloadModal/OfflineDownloadModal.vue';
   import SearchModal from './components/SearchModal/SearchModal.vue';
   import { useSettingStore } from '@/store/setting';
@@ -154,6 +155,15 @@
       icon: () => (
         <NIcon>
           <CloudServerOutlined />
+        </NIcon>
+      ),
+    },
+    {
+      label: () => <RouterLink to="/starred">星标文件</RouterLink>,
+      key: 'Starred',
+      icon: () => (
+        <NIcon>
+          <StarOutlined />
         </NIcon>
       ),
     },

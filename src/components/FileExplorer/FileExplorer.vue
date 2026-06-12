@@ -74,6 +74,7 @@
       @move="handleContextMove"
       @rename="renameModalShow = true"
       @batch-rename="handleBatchRename"
+      @toggle-star="handleToggleStar"
       @detail="handleDetail"
       @delete="handleContextDelete"
     />
@@ -150,6 +151,7 @@
       toolbar?: boolean | ToolbarAction[];
       contextMenu?: boolean | ContextMenuAction[];
       columns?: ListColumn[];
+      starred?: boolean;
     }>(),
     {
       showCheckbox: true,
@@ -157,6 +159,7 @@
       toolbar: true,
       contextMenu: true,
       columns: () => ['size', 'type', 'createTime', 'modifyTime'],
+      starred: false,
     },
   );
 
@@ -178,6 +181,7 @@
     'upload-file': [];
     'upload-folder': [];
     'open-file': [file: MyFile];
+    'toggle-star': [file: MyFile];
   }>();
 
   const cid = defineModel<string>('cid', { default: '0' });
@@ -214,6 +218,7 @@
     asc: sortConfig.value.direction === 'asc' ? 1 : 0,
     custom_order: settingStore.generalSetting.customOrder,
     nf: props.onlyFolder ? 1 : 0,
+    star: props.starred ? 1 : undefined,
   });
 
   // 右键菜单
@@ -526,6 +531,12 @@
     const res = await fileDetail({ file_id: contextMenuState.value.targetItem.fid });
     fileDetailData.value = res.data;
     detailModalShow.value = true;
+  };
+
+  const handleToggleStar = () => {
+    const file = contextMenuState.value.targetItem;
+    if (!file) return;
+    emit('toggle-star', file);
   };
 
   // ============ 上传 ============

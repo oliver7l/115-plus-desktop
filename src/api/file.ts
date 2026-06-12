@@ -133,3 +133,15 @@ export const fileSearch = (params: FileSearchRequestParams) =>
     params,
     cacheFor: null,
   });
+
+/**
+ * 设置星标
+ * @param file_ids 文件ID，多个用逗号分隔
+ * @param star 0: 取消星标, 1: 添加星标
+ */
+export const setFileStar = (data: { file_ids: string; star: 0 | 1 }) =>
+  alovaInst.Post<ResponseData<unknown>>(`${openBaseUrl}/open/ufile/fs_star_set`, data, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  });

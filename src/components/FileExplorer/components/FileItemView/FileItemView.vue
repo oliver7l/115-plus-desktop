@@ -67,9 +67,11 @@
     </div>
 
     <!-- 图标 -->
-    <div class="w-16 h-16 flex items-center justify-center mb-2">
+    <div class="w-16 h-16 flex items-center justify-center mb-2 relative">
       <img v-if="item.thumb" :src="item.thumb" class="w-full h-full object-cover rounded" />
       <span v-else class="text-4xl leading-none">{{ icon }}</span>
+      <!-- 星标标记 -->
+      <div v-if="item.ism === '1'" class="absolute top-0 right-0 text-yellow-400">⭐</div>
     </div>
 
     <!-- 文件名 -->
@@ -103,9 +105,11 @@
     </div>
 
     <!-- 图标 -->
-    <div class="w-8 h-8 flex items-center justify-center shrink-0">
+    <div class="w-8 h-8 flex items-center justify-center shrink-0 relative">
       <img v-if="item.thumb" :src="item.thumb" class="w-full h-full object-cover rounded" />
       <span v-else class="text-xl leading-none">{{ icon }}</span>
+      <!-- 星标标记 -->
+      <div v-if="item.ism === '1'" class="absolute -top-1 -right-1 text-yellow-400 text-xs">⭐</div>
     </div>
 
     <!-- 名称 -->

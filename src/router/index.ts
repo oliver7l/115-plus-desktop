@@ -21,6 +21,11 @@ const router = createRouter({
           component: () => import('@/views/Home/HomeView.vue'),
         },
         {
+          path: 'starred',
+          name: 'Starred',
+          component: () => import('@/views/Starred/StarredView.vue'),
+        },
+        {
           path: 'recycleBin',
           name: 'RecycleBin',
           component: () => import('@/views/RecycleBin/RecycleBin.vue'),
