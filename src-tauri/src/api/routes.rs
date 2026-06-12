@@ -12,7 +12,7 @@ use crate::api::CookieState;
 use crate::api::handlers;
 
 /// 创建 API 路由
-pub fn create_routes(mode: ApiServerMode, cookie_state: CookieState) -> Router {
+pub fn create_routes(mode: ApiServerMode, cookie_state: CookieState) -> Router<CookieState> {
     let api_router = Router::new()
         // 健康检查
         .route("/health", get(handlers::health::health_check))

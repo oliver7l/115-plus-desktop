@@ -235,12 +235,15 @@ pub async fn list_files(
     asc: Option<u8>,
 ) -> Result<FileListResponse, ApiError> {
     let client = ApiClient::new(cookies.to_string());
-    let mut params = vec![
+    let offset_str = offset.unwrap_or(0).to_string();
+    let limit_str = limit.unwrap_or(100).to_string();
+    let asc_str = asc.unwrap_or(1).to_string();
+    let params = vec![
         ("cid", cid),
-        ("offset", &offset.unwrap_or(0).to_string()),
-        ("limit", &limit.unwrap_or(100).to_string()),
+        ("offset", &offset_str),
+        ("limit", &limit_str),
         ("sort", sort.unwrap_or("file_name")),
-        ("asc", &asc.unwrap_or(1).to_string()),
+        ("asc", &asc_str),
     ];
     client.get("/open/file/list", Some(params)).await
 }
