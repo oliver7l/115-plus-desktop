@@ -9,6 +9,7 @@
 //! - Cookie 通过全局状态管理，不依赖 axum State
 
 pub mod client;
+pub mod commands;
 pub mod handlers;
 pub mod routes;
 

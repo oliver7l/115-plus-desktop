@@ -228,7 +228,7 @@ pub fn run() {
             download::queue::download_pause_all,
             download::queue::download_resume_all,
             // API 服务 — 设置 Cookie
-            set_cookies,
+            api::commands::set_cookies,
         ])
         // ---- 运行 ----
         .build(tauri::generate_context!())
@@ -268,15 +268,3 @@ pub(crate) fn show_window(app: &AppHandle) -> Result<(), String> {
 }
 
 // ============== API 服务管理 ==============
-
-/// 设置 115 API Cookie
-///
-/// 前端登录后调用此方法同步 Cookie 到 Rust 后端
-#[tauri::command]
-pub(crate) async fn set_cookies(
-    cookies: String,
-) -> Result<(), String> {
-    api::get_cookie_state().set_cookies(cookies);
-    log::info!("[API] Cookie 已更新");
-    Ok(())
-}
