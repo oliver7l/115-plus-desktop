@@ -131,7 +131,7 @@ pub async fn start_server(
 
     let addr: SocketAddr = format!("{}:{}", config.host, config.port)
         .parse()
-        .map_err(|e| ApiServerError::InvalidAddress(e.to_string()))?;
+        .map_err(|e: std::net::AddrParseError| ApiServerError::InvalidAddress(e.to_string()))?;
 
     info!("[API] 启动 HTTP 服务于 http://{}", addr);
 
@@ -191,29 +191,6 @@ pub enum ApiServerError {
 
     #[error("内部错误: {0}")]
     Internal(String),
-}
-
-impl From<ApiServerError> for axum::response::Response<String> {
-    fn from(err: ApiServerError) -> Self {
-        let status = match &err {
-            ApiServerError::BindFailed(_) => axum::http::StatusCode::SERVICE_UNAVAILABLE,
-            ApiServerError::InvalidAddress(_) => axum::http::StatusCode::BAD_REQUEST,
-            ApiServerError::FrontendNotConnected(_) => axum::http::StatusCode::UNAUTHORIZED,
-            ApiServerError::Timeout(_) => axum::http::StatusCode::GATEWAY_TIMEOUT,
-            ApiServerError::ApiError(_) => axum::http::StatusCode::BAD_GATEWAY,
-            ApiServerError::Internal(_) => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        };
-
-        axum::response::Response::builder()
-            .status(status)
-            .body(err.to_string())
-            .unwrap_or_else(|_| {
-                axum::http::Response::builder()
-                    .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-                    .body("Internal Error".to_string())
-                    .unwrap()
-            })
-    }
 }
 
 impl serde::Serialize for ApiServerError {

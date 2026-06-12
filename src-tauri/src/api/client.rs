@@ -3,7 +3,8 @@
 //! 直接与 115 服务器通信，获取数据
 
 use log::{error, info};
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue, COOKIE, REFERER, USER_AGENT};
+use reqwest::header::{COOKIE, REFERER};
+use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -46,7 +47,16 @@ impl ApiClient {
         let mut request = self.http_client.get(&url).header(COOKIE, &self.cookies);
 
         if let Some(params) = params {
-            request = request.query(&params);
+            let query_string: Vec<String> = params
+                .iter()
+                .map(|(k, v)| format!("{}={}", urlencoding(k), urlencoding(v)))
+                .collect();
+            let url = if query_string.is_empty() {
+                url
+            } else {
+                format!("{}?{}", url, query_string.join("&"))
+            };
+            request = self.http_client.get(&url).header(COOKIE, &self.cookies);
         }
 
         let response = request.send().await.map_err(|e| ApiError::Network(e.to_string()))?;
@@ -81,9 +91,11 @@ impl ApiClient {
             .header(REFERER, "https://115.com/");
 
         if let Some(data) = data {
+            let body = serde_urlencoded::to_string(&data)
+                .map_err(|e| ApiError::Internal(e.to_string()))?;
             request = request
                 .header("Content-Type", "application/x-www-form-urlencoded")
-                .form(&data);
+                .body(body);
         }
 
         let response = request.send().await.map_err(|e| ApiError::Network(e.to_string()))?;
@@ -306,6 +318,9 @@ pub enum ApiError {
 
     #[error("115 API 错误: code={0} - {1:?}")]
     Api(i64, Option<Value>),
+
+    #[error("内部错误: {0}")]
+    Internal(String),
 }
 
 impl serde::Serialize for ApiError {
@@ -315,4 +330,36 @@ impl serde::Serialize for ApiError {
     {
         serializer.serialize_str(&self.to_string())
     }
+}
+
+impl axum::response::IntoResponse for ApiError {
+    fn into_response(self) -> axum::response::Response {
+        let status = match &self {
+            ApiError::Network(_) => axum::http::StatusCode::BAD_GATEWAY,
+            ApiError::Http(code, _) => {
+                axum::http::StatusCode::from_u16(*code)
+                    .unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+            }
+            ApiError::Parse(_) | ApiError::Internal(_) => {
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR
+            }
+            ApiError::Api(_, _) => axum::http::StatusCode::BAD_GATEWAY,
+        };
+        (status, self.to_string()).into_response()
+    }
+}
+
+/// URL 编码辅助函数
+fn urlencoding(s: &str) -> String {
+    let mut result = String::new();
+    for byte in s.as_bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                result.push(*byte as char);
+            }
+            b' ' => result.push_str("+"),
+            _ => result.push_str(&format!("%{:02X}", byte)),
+        }
+    }
+    result
 }
